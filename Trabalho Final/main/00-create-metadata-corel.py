@@ -17,7 +17,7 @@ CLASS_PROMPTS = {
     "0006": "sunset over water, orange sky at dusk"
 }
 
-def create_metadata(data_dir="./data/corel", output_file="./data/corel/metadata.jsonl"):
+def create_metadata(data_dir="/content/MO433/Trabalho Final/main/data/corel", output_file="/content/MO433/Trabalho Final/main/data/corel/metadata.jsonl"):
     data_dir = Path(data_dir)
     image_files = sorted(list(data_dir.glob("*.png")) + list(data_dir.glob("*.jpg")))
     
