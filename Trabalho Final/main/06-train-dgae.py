@@ -22,9 +22,9 @@ import argparse
 
 
 class Config:
-    data_dir = "./data/corel"
-    output_dir = "./dgae_model"
-    lora_dir = "./corel_lora_model"
+    data_dir = "/content/MO433/Trabalho Final/main/data/corel"
+    output_dir = "/content/MO433/Trabalho Final/main/dgae_model"
+    lora_dir = "/content/MO433/Trabalho Final/main/corel_lora_model"
     
     image_size = 256
     image_channels = 3
@@ -368,9 +368,9 @@ def plot_losses(losses, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description='Train DGAE for Corel Dataset')
-    parser.add_argument('--data-dir', type=str, default='./data/corel')
-    parser.add_argument('--lora-dir', type=str, default='./corel_lora_model')
-    parser.add_argument('--output-dir', type=str, default='./dgae_model')
+    parser.add_argument('--data-dir', type=str, default='/content/MO433/Trabalho Final/main/data/corel')
+    parser.add_argument('--lora-dir', type=str, default='/content/MO433/Trabalho Final/main/corel_lora_model')
+    parser.add_argument('--output-dir', type=str, default='/content/MO433/Trabalho Final/main/dgae_model')
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--guidance-weight', type=float, default=0.1)

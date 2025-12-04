@@ -388,7 +388,7 @@ def main():
     
     parser.add_argument('--diffusion-checkpoint', type=str, required=True)
     parser.add_argument('--vae-checkpoint', type=str, required=True)
-    parser.add_argument('--output-dir', type=str, default='./generated_images_diffusion_corel')
+    parser.add_argument('--output-dir', type=str, default='/content/MO433/Trabalho Final/main/generated_images_diffusion_corel')
     parser.add_argument('--num-images-per-class', type=int, default=50)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--ddim-steps', type=int, default=50)

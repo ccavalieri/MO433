@@ -33,7 +33,7 @@ def main():
     text_encoder_lora_rank          = 4
     text_encoder_lora_alpha         = 4
     train_text_encoder              = True
-    learning_rate                   = 1e-4
+    learning_rate                   = 2e-4
     text_encoder_lr                 = 5e-5
     adam_beta1, adam_beta2          = 0.9, 0.999
     adam_weight_decay               = 1e-2
@@ -43,9 +43,9 @@ def main():
     resolution                      = 256
     center_crop                     = True
     random_flip                     = True
-    train_batch_size                = 1
-    gradient_accumulation_steps     = 4
-    num_train_epochs                = 200
+    train_batch_size                = 16
+    gradient_accumulation_steps     = 1
+    num_train_epochs                = 30
     lr_scheduler_name               = "constant"
     max_grad_norm                   = 1.0
     diffusion_scheduler             = DDPMScheduler

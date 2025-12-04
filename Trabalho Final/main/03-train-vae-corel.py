@@ -22,8 +22,8 @@ import argparse
 
 
 class Config:
-    data_dir = "./data/corel"
-    output_dir = "./corel_vae_model"
+    data_dir = "/content/MO433/Trabalho Final/main/data/corel"
+    output_dir = "/content/MO433/Trabalho Final/main/corel_vae_model"
     image_size = 256
     image_channels = 3
     latent_dim = 128
@@ -354,8 +354,8 @@ def plot_losses(losses, output_dir, config):
 
 def main():
     parser = argparse.ArgumentParser(description='Train VAE for Corel Dataset')
-    parser.add_argument('--data-dir', type=str, default='./data/corel')
-    parser.add_argument('--output-dir', type=str, default='./corel_vae_model')
+    parser.add_argument('--data-dir', type=str, default='/content/MO433/Trabalho Final/main/data/corel')
+    parser.add_argument('--output-dir', type=str, default='/content/MO433/Trabalho Final/main/corel_vae_model')
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--resume', type=str, default=None)

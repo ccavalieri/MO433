@@ -378,7 +378,7 @@ class EarlyStopper:
 def train_latent_diffusion(
     vae_checkpoint_path,
     image_dir,
-    output_dir='./corel_diffusion_model',
+    output_dir='/content/MO433/Trabalho Final/main/corel_diffusion_model',
     num_epochs=200,
     batch_size=16,
     grad_accumulation_steps=1,
@@ -641,8 +641,8 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Train Latent Diffusion for Corel")
     parser.add_argument('--vae-checkpoint', type=str, required=True)
-    parser.add_argument('--image-dir', type=str, default='./data/corel')
-    parser.add_argument('--output-dir', type=str, default='./corel_diffusion_model')
+    parser.add_argument('--image-dir', type=str, default='/content/MO433/Trabalho Final/main/data/corel')
+    parser.add_argument('--output-dir', type=str, default='/content/MO433/Trabalho Final/main/corel_diffusion_model')
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=1e-4)
