@@ -105,7 +105,6 @@ def main():
             , target_modules      = ["q_proj", "k_proj", "v_proj", "out_proj"]
         )
         text_encoder.add_adapter(text_encoder_lora_config)
-        print("Text encoder LoRA enabled")
     
     # Upcast trainable parameters
     for param in unet.parameters():

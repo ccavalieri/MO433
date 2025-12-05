@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-DGAE - Diffusion-Guided Autoencoder for Corel Dataset - Task 4
-Uses Stable Diffusion + LoRA from Task 2 for guidance
-FIXED: Simplified diffusion features extraction to avoid dtype conflicts
+DGAE - Diffusion-Guided Autoencoder for Corel Dataset
 """
 
 import torch
@@ -64,7 +62,7 @@ class ImageDataset(Dataset):
         if len(self.image_paths) == 0:
             raise ValueError(f"No images found in {data_dir}")
         
-        print(f"✓ Found {len(self.image_paths)} images")
+        print(f"Found {len(self.image_paths)} images")
         
         self.transform = transforms.Compose([
             transforms.Resize(image_size),
@@ -202,10 +200,9 @@ def find_latest_lora(lora_dir):
 
 
 def load_diffusion_model(lora_dir, device):
-    print("Loading Stable Diffusion + LoRA for guidance...")
+    print("Loading Stable Diffusion + LoRA")
     
     lora_name = find_latest_lora(lora_dir)
-    print(f"Found LoRA: {lora_name}")
     
     pipe = StableDiffusionPipeline.from_pretrained(
         "runwayml/stable-diffusion-v1-5",
@@ -226,7 +223,7 @@ def load_diffusion_model(lora_dir, device):
     for param in vae.parameters():
         param.requires_grad = False
     
-    print("✓ Diffusion VAE loaded successfully!")
+    print("Diffusion VAE loaded")
     
     return vae
 
@@ -235,23 +232,16 @@ def load_diffusion_model(lora_dir, device):
 def extract_diffusion_features(images, vae, device):
     """
     Extract latent features from Stable Diffusion VAE encoder
-    
-    SIMPLIFIED VERSION: Uses only VAE encoder (no U-Net) to avoid dtype issues
-    This captures the compressed representation learned by Stable Diffusion
     """
     images = images.to(device, dtype=torch.float16)
     
-    # Encode with VAE to get latent distribution
     latent_dist = vae.encode(images).latent_dist
     
-    # Use both mean and std as features (richer representation)
     mean = latent_dist.mean
     std = latent_dist.std
     
-    # Concatenate mean and std along channel dimension
     features = torch.cat([mean, std], dim=1)
     
-    # Global average pooling to get fixed-size feature vector
     features = features.mean(dim=[2, 3])
     
     return features.float()
@@ -261,34 +251,22 @@ def dgae_loss(recon_x, x, z_dgae, guidance_features, guidance_weight=0.1, recon_
     """
     DGAE Loss = Reconstruction + Guidance + Regularization
     """
-    # Reconstruction loss
     recon_loss = F.mse_loss(recon_x, x, reduction='mean')
     
-    # Guidance loss: align DGAE latents with diffusion features
     if guidance_features is not None:
-        # Project guidance features to match DGAE latent dim
-        # guidance_features is (batch, 8) from VAE mean+std
-        # z_dgae is (batch, 128)
-        # We need to make them comparable
-        
-        # Simple approach: normalize both and compute MSE
         z_dgae_norm = F.normalize(z_dgae, dim=1)
         guidance_norm = F.normalize(guidance_features, dim=1)
         
-        # Pad guidance to match DGAE dim or use projection
         if guidance_features.shape[1] < z_dgae.shape[1]:
-            # Repeat guidance features to match dimension
             repeat_factor = z_dgae.shape[1] // guidance_features.shape[1]
             guidance_expanded = guidance_norm.repeat(1, repeat_factor)
             guidance_loss = F.mse_loss(z_dgae_norm, guidance_expanded, reduction='mean')
         else:
-            # Project z_dgae to guidance space
             z_projected = z_dgae_norm[:, :guidance_features.shape[1]]
             guidance_loss = F.mse_loss(z_projected, guidance_norm, reduction='mean')
     else:
         guidance_loss = torch.tensor(0.0, device=x.device)
     
-    # Total loss
     total_loss = recon_weight * recon_loss + guidance_weight * guidance_loss
     
     return total_loss, recon_loss, guidance_loss
@@ -411,21 +389,16 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed(config.seed)
     
-    print("="*80)
     print("DGAE TRAINING - DIFFUSION-GUIDED AUTOENCODER")
-    print("="*80)
     print(f"Data:            {config.data_dir}")
     print(f"LoRA:            {config.lora_dir}")
     print(f"Resolution:      {config.image_size}x{config.image_size}")
     print(f"Latent dim:      {config.latent_dim}")
     print(f"Epochs:          {config.num_epochs}")
     print(f"Batch size:      {config.batch_size}")
-    print(f"Guidance weight: {config.guidance_weight}")
-    print("="*80 + "\n")
     
     os.makedirs(config.output_dir, exist_ok=True)
     
-    # Load only VAE (not U-Net) to avoid dtype issues
     vae = load_diffusion_model(config.lora_dir, config.device)
     
     dataset = ImageDataset(config.data_dir, config.image_size)
@@ -436,11 +409,10 @@ def main():
         drop_last=True
     )
     
-    print(f"✓ Dataset: {len(dataset)} images\n")
+    print(f"Dataset: {len(dataset)} images\n")
     
     model = DGAE(config).to(config.device)
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"✓ Model parameters: {num_params:,}\n")
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, 
                                  weight_decay=config.weight_decay)
@@ -457,11 +429,7 @@ def main():
         start_epoch = checkpoint['epoch']
         losses = checkpoint['losses']
         best_loss = checkpoint['loss']
-        print(f"✓ Resumed from epoch {start_epoch}\n")
     
-    print("="*80)
-    print("Training...")
-    print("="*80 + "\n")
     
     for epoch in range(start_epoch, config.num_epochs):
         avg_loss, avg_recon, avg_guidance = train_epoch(
@@ -487,7 +455,7 @@ def main():
                 'losses': losses,
                 'config': config,
             }, Path(config.output_dir) / 'best_model.pt')
-            print(f"  ✓ Saved")
+            print(f"  Saved")
         
         if (epoch + 1) % config.sample_every == 0:
             generate_samples(model, epoch + 1, config.output_dir, config.device, 16)
@@ -504,10 +472,8 @@ def main():
                 'config': config,
             }, Path(config.output_dir) / f'checkpoint_{epoch+1:04d}.pt')
     
-    print("\n" + "="*80)
-    print("DONE!")
+    print("Done")
     print(f"Best loss: {best_loss:.4f}")
-    print("="*80)
 
 
 if __name__ == "__main__":

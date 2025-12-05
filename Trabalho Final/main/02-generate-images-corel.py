@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Generate Synthetic Images for Corel Dataset
-Adapted from code7-generate-image-with-lora.py
 """
 
 from diffusers import StableDiffusionPipeline
@@ -70,9 +69,6 @@ def find_latest_lora(lora_dir):
 
 def setup_pipeline(lora_dir, lora_name, device="cuda:0"):
     """Setup Stable Diffusion pipeline with LoRA"""
-    print("=" * 60)
-    print("Loading Stable Diffusion model...")
-    print("=" * 60)
     
     pipe = StableDiffusionPipeline.from_pretrained(
         "runwayml/stable-diffusion-v1-5",
@@ -83,7 +79,6 @@ def setup_pipeline(lora_dir, lora_name, device="cuda:0"):
     # Memory optimizations
     pipe.enable_attention_slicing(slice_size=1)
     pipe.enable_vae_tiling()
-    print("✓ Memory optimizations enabled")
     
     # Load LoRA
     print(f"\nLoading LoRA: {lora_name}")
@@ -93,7 +88,6 @@ def setup_pipeline(lora_dir, lora_name, device="cuda:0"):
         adapter_name="corel_lora"
     )
     pipe.set_adapters(["corel_lora"], adapter_weights=[1.0])
-    print("✓ LoRA loaded successfully")
     
     # Set scheduler
     pipe.scheduler = EulerDiscreteScheduler.from_config(pipe.scheduler.config)
@@ -112,7 +106,6 @@ def generate_class_images(pipe, class_id, class_info, output_dir, num_images, re
     
     print(f"\n{'='*60}")
     print(f"Generating {num_images} images for class {class_id} ({class_name})")
-    print(f"{'='*60}")
     print(f"Prompt: {prompt}")
     print(f"Output: {class_dir}")
     
@@ -147,7 +140,6 @@ def generate_class_images(pipe, class_id, class_info, output_dir, num_images, re
     grid = make_image_grid(images[:16], cols=4, rows=4)  # First 16 images
     grid_path = class_dir / f"{class_name}_grid.png"
     grid.save(grid_path)
-    print(f"✓ Saved grid: {grid_path}")
     
     return len(images)
 
@@ -166,17 +158,6 @@ def main():
     # Setup pipeline
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     pipe = setup_pipeline(LORA_DIR, lora_name, device)
-    
-    print("\n" + "=" * 60)
-    print("GENERATION SETTINGS")
-    print("=" * 60)
-    print(f"Resolution: {RESOLUTION}x{RESOLUTION}")
-    print(f"Images per class: {NUM_IMAGES_PER_CLASS}")
-    print(f"Total classes: {len(CLASS_INFO)}")
-    print(f"Total images: {NUM_IMAGES_PER_CLASS * len(CLASS_INFO)}")
-    print(f"Guidance scale: {GUIDANCE_SCALE}")
-    print(f"Seed start: {SEED_START}")
-    print("=" * 60)
     
     # Generate images for each class
     total_generated = 0
@@ -201,16 +182,7 @@ def main():
     pipe.to("cpu")
     torch.cuda.empty_cache()
     
-    print("\n" + "=" * 60)
-    print("✓ GENERATION COMPLETE!")
-    print("=" * 60)
     print(f"Total images generated: {total_generated}")
-    print(f"Output directory: {OUTPUT_DIR}")
-    print("\nGenerated images per class:")
-    for class_id in sorted(CLASS_INFO.keys()):
-        class_name = CLASS_INFO[class_id]["name"]
-        print(f"  {class_id} ({class_name}): {NUM_IMAGES_PER_CLASS} images")
-    print("=" * 60)
 
 if __name__ == "__main__":
     main()

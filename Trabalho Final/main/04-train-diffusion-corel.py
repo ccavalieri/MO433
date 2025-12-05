@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Train Latent Diffusion Model for Corel Dataset - Task 3
-Adapted from code5-train-stable-diffusion-from-scratch.py
-Resolution: 256x256, Epochs: 200
+Train Latent Diffusion Model for Corel Dataset
 """
 
 import torch

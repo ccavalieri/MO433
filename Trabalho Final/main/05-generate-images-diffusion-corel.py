@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Generate Synthetic Images using VAE + Diffusion - Task 3
-Adapted from code5-generate-samples.py
-Generates 50 images per class (300 total)
+Generate Synthetic Images using VAE + Diffusion
 """
 
 import torch
@@ -100,7 +98,6 @@ def load_vae_decoder(vae_checkpoint_path, device):
     for param in decoder.parameters():
         param.requires_grad = False
     
-    print(f"✓ VAE decoder loaded successfully!")
     return decoder, vae_config
 
 
@@ -275,10 +272,6 @@ def load_diffusion_model(checkpoint_path, latent_dim=128, device='cuda'):
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     
-    print(f"✓ Diffusion model loaded successfully!")
-    print(f"  Schedule: {schedule_type}")
-    print(f"  Epoch: {checkpoint.get('epoch', 'unknown')}")
-    
     return model, schedule_type
 
 
@@ -346,11 +339,7 @@ def generate_images(diffusion_model, vae_decoder, schedule, device='cuda',
         if torch.cuda.is_available():
             torch.cuda.manual_seed(seed)
     
-    print(f"Generating {num_images} images...")
-    if ddim_steps:
-        print(f"Using DDIM with {ddim_steps} steps")
-    else:
-        print(f"Using DDPM with {schedule.timesteps} steps")
+    print(f"Generating {num_images} images")
     
     latents = sample_latents(
         diffusion_model, schedule, 
@@ -360,7 +349,6 @@ def generate_images(diffusion_model, vae_decoder, schedule, device='cuda',
         ddim_steps=ddim_steps
     )
     
-    print("Decoding latents to images...")
     vae_decoder.eval()
     images = vae_decoder(latents)
     
@@ -399,19 +387,14 @@ def main():
     
     device = args.device
     if device == 'cuda' and not torch.cuda.is_available():
-        print("⚠️  CUDA not available, using CPU")
+        print("CUDA not available, using CPU")
         device = 'cpu'
     
-    print("="*80)
     print("IMAGE GENERATION - VAE + DIFFUSION")
-    print("="*80)
     print(f"Device: {device}")
     print(f"Images per class: {args.num_images_per_class}")
     print(f"Total images: {args.num_images_per_class * len(CLASS_INFO)}")
     print(f"Output: {args.output_dir}")
-    print(f"Seed: {args.seed}")
-    print(f"DDIM steps: {args.ddim_steps}")
-    print("="*80 + "\n")
     
     vae_decoder, vae_config = load_vae_decoder(args.vae_checkpoint, device)
     diffusion_model, schedule_type = load_diffusion_model(
@@ -432,11 +415,7 @@ def main():
     for class_id in sorted(CLASS_INFO.keys()):
         class_name = CLASS_INFO[class_id]
         class_dir = output_dir / class_name
-        class_dir.mkdir(exist_ok=True)
-        
-        print(f"\n{'='*60}")
-        print(f"Generating {args.num_images_per_class} images for class {class_id} ({class_name})")
-        print(f"{'='*60}")
+        class_dir.mkdir(exist_ok=True)            
         
         num_batches = (args.num_images_per_class + args.batch_size - 1) // args.batch_size
         
@@ -471,18 +450,15 @@ def main():
         save_image(grid, class_dir / f"{class_name}_grid.png")
         
         total_generated += len(all_images)
-        print(f"✓ Generated {len(all_images)} images for {class_name}")
+        print(f"Generated {len(all_images)} images for {class_name}")
     
-    print("\n" + "="*80)
-    print("✅ GENERATION COMPLETE!")
-    print("="*80)
+    print("Generation complete")
     print(f"Total images generated: {total_generated}")
     print(f"Output directory: {args.output_dir}")
     print("\nImages per class:")
     for class_id in sorted(CLASS_INFO.keys()):
         class_name = CLASS_INFO[class_id]
         print(f"  {class_id} ({class_name}): {args.num_images_per_class} images")
-    print("="*80)
 
 
 if __name__ == "__main__":

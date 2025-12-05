@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Train VAE for Corel Dataset - Task 3
-Adapted from code4-train-vae.py
-Resolution: 256x256, Epochs: 200
+Train VAE for Corel Dataset
 """
 
 import torch
@@ -64,7 +62,7 @@ class SimpleDataset(Dataset):
         if len(self.image_paths) == 0:
             raise ValueError(f"No images found in {data_dir}")
         
-        print(f"✓ Found {len(self.image_paths)} images")
+        print(f"Found {len(self.image_paths)} images")
         
         self.transform = transforms.Compose([
             transforms.Resize(image_size),
@@ -372,15 +370,12 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed(config.seed)
     
-    print("="*80)
-    print("VAE TRAINING - COREL DATASET")
-    print("="*80)
+    print("VAE - COREL DATASET")
     print(f"Data:            {config.data_dir}")
     print(f"Resolution:      {config.image_size}x{config.image_size}")
     print(f"Latent dim:      {config.latent_dim}")
     print(f"Epochs:          {config.num_epochs}")
     print(f"Batch size:      {config.batch_size}")
-    print("="*80 + "\n")
     
     os.makedirs(config.output_dir, exist_ok=True)
     
@@ -392,12 +387,10 @@ def main():
         drop_last=True
     )
     
-    print(f"✓ Dataset: {len(dataset)} images\n")
+    print(f"Dataset: {len(dataset)} images\n")
     
     model = CleanVAE(config).to(config.device)
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"✓ Parameters: {num_params:,}\n")
-    
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, 
                                  weight_decay=config.weight_decay)
     
@@ -414,11 +407,6 @@ def main():
         start_epoch = checkpoint['epoch']
         losses = checkpoint['losses']
         best_loss = checkpoint['loss']
-        print(f"✓ Resumed from epoch {start_epoch}\n")
-    
-    print("="*80)
-    print("Training...")
-    print("="*80 + "\n")
     
     for epoch in range(start_epoch, config.num_epochs):
         avg_loss, avg_recon, avg_kl, beta, avg_perc = train_epoch(
@@ -432,7 +420,7 @@ def main():
         losses['beta'].append(beta)
         losses['perceptual'].append(avg_perc)
         
-        kl_status = "✓" if abs(avg_kl - config.kl_target) <= 10 else "⚠"
+        kl_status = " " if abs(avg_kl - config.kl_target) <= 10 else " "
         
         print(f"\nEpoch {epoch+1}:")
         print(f"  Loss:  {avg_loss:.4f}")
@@ -465,10 +453,8 @@ def main():
                 'losses': losses,
             }, Path(config.output_dir) / f'checkpoint_{epoch+1:04d}.pt')
     
-    print("\n" + "="*80)
-    print("DONE!")
+    print("Done")
     print(f"Final KL: {losses['kl'][-1]:.1f}")
-    print("="*80)
 
 
 if __name__ == "__main__":

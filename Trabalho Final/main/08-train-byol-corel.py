@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Train BYOL on Corel Dataset and Extract Features - Task 5
-Adapted from code4-byol_unsupfeatlearn.py
+Train BYOL on Corel Dataset and Extract Features
 """
 
 import torch
@@ -234,7 +233,7 @@ def extract_features(model, dataloader, device):
     all_labels = []
     all_filenames = []
     
-    print("Extracting features...")
+    print("Extracting features")
     
     for data, filenames in tqdm(dataloader, desc="Processing"):
         data = data.to(device)
@@ -252,8 +251,7 @@ def extract_features(model, dataloader, device):
     all_features = np.vstack(all_features)
     all_labels = np.array(all_labels)
     
-    print(f"✓ Extracted features from {len(all_features)} images")
-    print(f"  Feature shape: {all_features.shape}")
+    print(f"Extracted features from {len(all_features)} images")
     
     return all_features, all_labels, all_filenames
 
@@ -274,7 +272,7 @@ def save_features(features, labels, filenames, output_path):
     with open(output_path, 'wb') as f:
         pickle.dump(data, f)
     
-    print(f"✓ Features saved to: {output_path}")
+    print(f"Features saved to: {output_path}")
 
 
 def main():
@@ -292,34 +290,26 @@ def main():
     
     device = args.device if torch.cuda.is_available() else 'cpu'
     
-    print("="*80)
     print("BYOL TRAINING - COREL DATASET")
-    print("="*80)
     print(f"Data:        {args.data_dir}")
     print(f"Epochs:      {args.epochs}")
     print(f"Batch size:  {args.batch_size}")
     print(f"Image size:  {args.image_size}")
     print(f"Device:      {device}")
-    print("="*80 + "\n")
     
     train_dataset = CorelDataset(args.data_dir, args.image_size, augment=True)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     
-    print(f"✓ Dataset: {len(train_dataset)} images\n")
+    print(f"Dataset: {len(train_dataset)} images\n")
     
     model = BYOLModel(input_channels=3, image_size=args.image_size, projection_dim=128).to(device)
     
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"✓ Model parameters: {num_params:,}\n")
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
     
     augment_fn = get_byol_augmentation(args.image_size)
-    
-    print("="*80)
-    print("Training...")
-    print("="*80 + "\n")
     
     best_loss = float('inf')
     
@@ -349,7 +339,7 @@ def main():
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': avg_loss,
             }, Path(args.output_dir) / 'best_model.pt')
-            print(f"  ✓ Saved")
+            print(f"  Saved")
         
         scheduler.step()
         
@@ -361,9 +351,7 @@ def main():
                 'loss': avg_loss,
             }, Path(args.output_dir) / f'checkpoint_{epoch+1:04d}.pt')
     
-    print("\n" + "="*80)
-    print("Training complete! Extracting features...")
-    print("="*80 + "\n")
+    print("Extracting features")
     
     eval_dataset = CorelDataset(args.data_dir, args.image_size, augment=False)
     eval_loader = DataLoader(eval_dataset, batch_size=32, shuffle=False, num_workers=4)
@@ -371,9 +359,7 @@ def main():
     features, labels, filenames = extract_features(model, eval_loader, device)
     save_features(features, labels, filenames, args.features_output)
     
-    print("\n" + "="*80)
-    print("✅ DONE!")
-    print("="*80)
+    print("Done")
 
 
 if __name__ == "__main__":

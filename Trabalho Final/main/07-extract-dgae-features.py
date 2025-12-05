@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Extract Latent Features from DGAE - Task 4
-Prepares features for clustering evaluation in Task 5
+Extract Latent Features from DGAE
 """
 
 import torch
@@ -190,11 +189,8 @@ def load_dgae_model(checkpoint_path, device):
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     
-    print("✓ DGAE loaded successfully!")
-    print(f"  Latent dimension: {config.latent_dim}")
-    print(f"  Training epoch: {checkpoint['epoch']}")
-    print(f"  Training loss: {checkpoint['loss']:.4f}")
-    
+    print("DGAE loaded")
+
     return model, config
 
 
@@ -206,7 +202,7 @@ def extract_features(model, dataloader, device):
     all_labels = []
     all_filenames = []
     
-    print("Extracting latent features...")
+    print("Extracting latent features")
     
     for images, filenames in tqdm(dataloader, desc="Processing"):
         images = images.to(device)
@@ -222,9 +218,6 @@ def extract_features(model, dataloader, device):
     all_features = np.vstack(all_features)
     all_labels = np.array(all_labels)
     
-    print(f"✓ Extracted features from {len(all_features)} images")
-    print(f"  Feature shape: {all_features.shape}")
-    print(f"  Unique classes: {np.unique(all_labels)}")
     
     return all_features, all_labels, all_filenames
 
@@ -245,18 +238,11 @@ def save_features(features, labels, filenames, output_path):
     with open(output_path, 'wb') as f:
         pickle.dump(data, f)
     
-    print(f"✓ Features saved to: {output_path}")
-    print(f"  Feature dimension: {data['feature_dim']}")
-    print(f"  Number of samples: {data['num_samples']}")
-    print(f"  Number of classes: {data['num_classes']}")
-
+    print(f"Features saved to: {output_path}")
 
 def print_class_distribution(labels):
     unique_labels, counts = np.unique(labels, return_counts=True)
     
-    print("\nClass distribution:")
-    for label, count in zip(unique_labels, counts):
-        print(f"  Class {label:04d}: {count} images")
 
 
 def main():
@@ -277,17 +263,14 @@ def main():
     
     device = args.device
     if device == 'cuda' and not torch.cuda.is_available():
-        print("⚠️  CUDA not available, using CPU")
+        print("CUDA not available, using CPU")
         device = 'cpu'
     
-    print("="*80)
-    print("DGAE FEATURE EXTRACTION")
-    print("="*80)
+    print("DGAE Feature Extraction")
     print(f"Checkpoint: {args.checkpoint}")
     print(f"Data dir:   {args.data_dir}")
     print(f"Output:     {args.output}")
     print(f"Device:     {device}")
-    print("="*80 + "\n")
     
     model, config = load_dgae_model(args.checkpoint, device)
     
@@ -300,7 +283,7 @@ def main():
         pin_memory=True if device == "cuda" else False
     )
     
-    print(f"✓ Dataset: {len(dataset)} images\n")
+    print(f"Dataset: {len(dataset)} images\n")
     
     features, labels, filenames = extract_features(model, dataloader, device)
     
@@ -308,11 +291,8 @@ def main():
     
     save_features(features, labels, filenames, args.output)
     
-    print("\n" + "="*80)
-    print("✅ FEATURE EXTRACTION COMPLETE!")
-    print("="*80)
-    print(f"Features ready for clustering evaluation in Task 5")
-    print("="*80)
+    print("Feature Extraction Complete")
+
 
 
 if __name__ == "__main__":

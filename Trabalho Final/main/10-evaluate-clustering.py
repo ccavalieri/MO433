@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Clustering Evaluation - Task 5
-Compare BYOL, CNN-JEPA, and DGAE across different augmentation scenarios
+Clustering Evaluation
 """
 
 import numpy as np
@@ -96,8 +95,6 @@ def load_scenario_features(method_name, scenario, feature_paths):
         labels = np.concatenate([orig_labels, np.array(diff_labels)])
         filenames = orig_files + diff_images
     
-    print(f"  Total samples: {len(features)}")
-    print(f"  Feature dim: {features.shape[1]}")
     
     return features, labels, filenames
 
@@ -151,7 +148,7 @@ def compute_tsne_embedding(features, random_state=42):
 
 
 def plot_embedding(embedding, labels, title, output_path, method='UMAP'):
-    """Plot embedding with fixed colors"""
+    """Plot embedding"""
     fig, ax = plt.subplots(figsize=(10, 8))
     
     for class_id in sorted(np.unique(labels)):
@@ -234,7 +231,7 @@ def create_comparison_plot(all_results, output_path):
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
     
-    print(f"\n✓ Saved comparison plot: {output_path}")
+    print(f"\nSaved comparison plot: {output_path}")
 
 
 def save_results_csv(all_results, output_path):
@@ -258,7 +255,7 @@ def save_results_csv(all_results, output_path):
     df = df.sort_values(['Method', 'Scenario'])
     df.to_csv(output_path, index=False)
     
-    print(f"✓ Saved CSV results: {output_path}")
+    print(f"Saved CSV results: {output_path}")
     
     return df
 
@@ -281,20 +278,13 @@ def save_results_json(all_results, output_path):
     with open(output_path, 'w') as f:
         json.dump(json_data, f, indent=2)
     
-    print(f"✓ Saved JSON results: {output_path}")
+    print(f"Saved JSON results: {output_path}")
 
 
 def print_results_summary(df):
     """Print results summary"""
-    print("\n" + "="*80)
-    print("CLUSTERING RESULTS SUMMARY")
-    print("="*80)
-    print(df.to_string(index=False))
-    print("="*80)
-    
-    print("\n" + "="*80)
+
     print("BEST RESULTS BY METRIC")
-    print("="*80)
     
     for metric in ['Silhouette', 'ARI', 'NMI']:
         best_idx = df[metric].idxmax()
@@ -321,12 +311,6 @@ def main():
         'DGAE': args.dgae_features
     }
     
-    print("="*80)
-    print("CLUSTERING EVALUATION - TASK 5")
-    print("="*80)
-    print(f"Output directory: {output_dir}")
-    print("="*80)
-    
     methods = ['BYOL', 'CNN-JEPA', 'DGAE']
     scenarios = ['Original', '+LoRA', '+Diffusion']
     
@@ -334,24 +318,19 @@ def main():
     
     for method in methods:
         if not Path(feature_paths[method]).exists():
-            print(f"\n⚠ Warning: Features not found for {method}, skipping...")
+            
             continue
         
         for scenario in scenarios:
-            print(f"\n{'='*80}")
-            print(f"Evaluating: {method} - {scenario}")
-            print(f"{'='*80}")
+            
             
             try:
                 features, labels, filenames = load_scenario_features(method, scenario, feature_paths)
                 
-                print("Computing clustering metrics...")
                 metrics_result = compute_clustering_metrics(features, labels)
                 
-                print("Computing UMAP embedding...")
                 umap_embedding = compute_umap_embedding(metrics_result['features_scaled'])
                 
-                print("Computing t-SNE embedding...")
                 tsne_embedding = compute_tsne_embedding(metrics_result['features_scaled'])
                 
                 key = f"{method}_{scenario}"
@@ -384,33 +363,17 @@ def main():
                 )
                 
             except Exception as e:
-                print(f"✗ Error processing {method} - {scenario}: {e}")
+                print(f"Error processing {method} - {scenario}: {e}")
                 continue
     
-    if len(all_results) == 0:
-        print("\n✗ No results to save!")
-        return
-    
-    print(f"\n{'='*80}")
-    print("Creating comparison visualizations...")
-    print(f"{'='*80}")
-    
     create_comparison_plot(all_results, output_dir / 'comparison_all_methods.png')
-    
-    print(f"\n{'='*80}")
-    print("Saving results...")
-    print(f"{'='*80}")
     
     df = save_results_csv(all_results, output_dir / 'clustering_metrics.csv')
     save_results_json(all_results, output_dir / 'clustering_metrics.json')
     
     print_results_summary(df)
     
-    print("\n" + "="*80)
-    print("✅ CLUSTERING EVALUATION COMPLETE!")
-    print("="*80)
-    print(f"All results saved to: {output_dir}")
-    print("="*80)
+    print("Clustering completed")
 
 
 if __name__ == "__main__":
