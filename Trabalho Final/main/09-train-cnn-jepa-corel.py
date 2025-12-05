@@ -295,9 +295,9 @@ def save_features(features, labels, filenames, output_path):
 
 def main():
     parser = argparse.ArgumentParser(description='Train CNN-JEPA on Corel Dataset')
-    parser.add_argument('--data-dir', type=str, default='./data/corel')
-    parser.add_argument('--output-dir', type=str, default='./jepa_model')
-    parser.add_argument('--features-output', type=str, default='./jepa_features.pkl')
+    parser.add_argument('--data-dir', type=str, default='/content/MO433/Trabalho Final/main/data/corel')
+    parser.add_argument('--output-dir', type=str, default='/content/MO433/Trabalho Final/main/jepa_model')
+    parser.add_argument('--features-output', type=str, default='/content/MO433/Trabalho Final/main/jepa_features.pkl')
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=0.001)

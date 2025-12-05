@@ -57,7 +57,7 @@ def load_scenario_features(method_name, scenario, feature_paths):
     elif scenario == '+LoRA':
         orig_features, orig_labels, orig_files = load_features(feature_paths[method_name])
         
-        lora_dir = Path('./generated_images_corel')
+        lora_dir = Path('/content/MO433/Trabalho Final/main/generated_images_corel')
         lora_images = []
         lora_labels = []
         
@@ -78,7 +78,7 @@ def load_scenario_features(method_name, scenario, feature_paths):
     elif scenario == '+Diffusion':
         orig_features, orig_labels, orig_files = load_features(feature_paths[method_name])
         
-        diff_dir = Path('./generated_images_diffusion_corel')
+        diff_dir = Path('/content/MO433/Trabalho Final/main/generated_images_diffusion_corel')
         diff_images = []
         diff_labels = []
         
@@ -301,10 +301,10 @@ def print_results_summary(df):
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate Clustering')
-    parser.add_argument('--byol-features', type=str, default='./byol_features.pkl')
-    parser.add_argument('--jepa-features', type=str, default='./jepa_features.pkl')
-    parser.add_argument('--dgae-features', type=str, default='./dgae_features.pkl')
-    parser.add_argument('--output-dir', type=str, default='./clustering_results')
+    parser.add_argument('--byol-features', type=str, default='/content/MO433/Trabalho Final/main/byol_features.pkl')
+    parser.add_argument('--jepa-features', type=str, default='/content/MO433/Trabalho Final/main/jepa_features.pkl')
+    parser.add_argument('--dgae-features', type=str, default='/content/MO433/Trabalho Final/main/dgae_features.pkl')
+    parser.add_argument('--output-dir', type=str, default='/content/MO433/Trabalho Final/main/clustering_results')
     
     args = parser.parse_args()
     

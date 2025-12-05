@@ -16,6 +16,31 @@ from tqdm import tqdm
 import argparse
 import pickle
 
+class Config:
+    data_dir = "/content/MO433/Trabalho Final/main/data/corel"
+    output_dir = "/content/MO433/Trabalho Final/main/dgae_model"
+    lora_dir = "/content/MO433/Trabalho Final/main/corel_lora_model"
+    
+    image_size = 256
+    image_channels = 3
+    latent_dim = 128
+    hidden_dims = [64, 128, 256, 512]
+    
+    num_epochs = 200
+    batch_size = 16
+    learning_rate = 1e-4
+    
+    guidance_weight = 0.1
+    recon_weight = 1.0
+    
+    weight_decay = 1e-5
+    grad_clip = 1.0
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    num_workers = 4
+    save_every = 20
+    sample_every = 10
+    seed = 42
+
 
 class ImageDataset(Dataset):
     def __init__(self, data_dir, image_size):
