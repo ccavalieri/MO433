@@ -269,9 +269,13 @@ def save_results_json(all_results, output_path):
     
     for key, result in all_results.items():
         json_data[key] = {
-            'metrics': result['metrics'],
-            'num_samples': len(result['true_labels']),
-            'num_classes': len(np.unique(result['true_labels']))
+            'metrics': {
+                'silhouette': float(result['metrics']['silhouette']),
+                'ari': float(result['metrics']['ari']),
+                'nmi': float(result['metrics']['nmi'])
+            },
+            'num_samples': int(len(result['true_labels'])),
+            'num_classes': int(len(np.unique(result['true_labels'])))
         }
     
     with open(output_path, 'w') as f:
