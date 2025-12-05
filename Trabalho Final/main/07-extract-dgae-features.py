@@ -158,7 +158,7 @@ class DGAE(nn.Module):
 def load_dgae_model(checkpoint_path, device):
     print(f"Loading DGAE from: {checkpoint_path}")
     
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     config = checkpoint['config']
     
     model = DGAE(config).to(device)
@@ -238,9 +238,9 @@ def main():
     parser = argparse.ArgumentParser(description='Extract features from DGAE')
     parser.add_argument('--checkpoint', type=str, required=True,
                        help='Path to DGAE checkpoint')
-    parser.add_argument('--data-dir', type=str, default='./data/corel',
+    parser.add_argument('--data-dir', type=str, default='/content/MO433/Trabalho Final/main/data/corel',
                        help='Directory containing images')
-    parser.add_argument('--output', type=str, default='./dgae_features.pkl',
+    parser.add_argument('--output', type=str, default='/content/MO433/Trabalho Final/main/dgae_features.pkl',
                        help='Output path for extracted features')
     parser.add_argument('--batch-size', type=int, default=32,
                        help='Batch size for feature extraction')

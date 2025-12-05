@@ -3,6 +3,7 @@
 """
 DGAE - Diffusion-Guided Autoencoder for Corel Dataset - Task 4
 Uses Stable Diffusion + LoRA from Task 2 for guidance
+FIXED: Simplified diffusion features extraction to avoid dtype conflicts
 """
 
 import torch
@@ -219,66 +220,81 @@ def load_diffusion_model(lora_dir, device):
     )
     pipe.set_adapters(["corel_lora"], adapter_weights=[1.0])
     
-    unet = pipe.unet
     vae = pipe.vae
     
-    unet.eval()
     vae.eval()
-    for param in unet.parameters():
-        param.requires_grad = False
     for param in vae.parameters():
         param.requires_grad = False
     
-    print("✓ Diffusion model loaded successfully!")
+    print("✓ Diffusion VAE loaded successfully!")
     
-    return unet, vae
+    return vae
 
 
 @torch.no_grad()
-def extract_diffusion_features(images, unet, vae, device):
-    """Extract intermediate features from diffusion model U-Net"""
+def extract_diffusion_features(images, vae, device):
+    """
+    Extract latent features from Stable Diffusion VAE encoder
+    
+    SIMPLIFIED VERSION: Uses only VAE encoder (no U-Net) to avoid dtype issues
+    This captures the compressed representation learned by Stable Diffusion
+    """
     images = images.to(device, dtype=torch.float16)
     
-    latents = vae.encode(images).latent_dist.sample()
-    latents = latents * vae.config.scaling_factor
+    # Encode with VAE to get latent distribution
+    latent_dist = vae.encode(images).latent_dist
     
-    timesteps = torch.randint(0, 1000, (images.shape[0],), device=device).long()
-    noise = torch.randn_like(latents)
-    noisy_latents = latents + noise * 0.1
+    # Use both mean and std as features (richer representation)
+    mean = latent_dist.mean
+    std = latent_dist.std
     
-    down_block_res_samples = []
+    # Concatenate mean and std along channel dimension
+    features = torch.cat([mean, std], dim=1)
     
-    sample = noisy_latents
-    emb = unet.time_embedding(timesteps)
-    
-    sample = unet.conv_in(sample)
-    
-    for downsample_block in unet.down_blocks:
-        sample, res_samples = downsample_block(
-            hidden_states=sample,
-            temb=emb,
-        )
-        down_block_res_samples.extend(res_samples)
-    
-    features = torch.cat([f.mean(dim=[2, 3]) for f in down_block_res_samples[-3:]], dim=1)
+    # Global average pooling to get fixed-size feature vector
+    features = features.mean(dim=[2, 3])
     
     return features.float()
 
 
-def dgae_loss(recon_x, x, guidance_features, guidance_weight=0.1, recon_weight=1.0):
+def dgae_loss(recon_x, x, z_dgae, guidance_features, guidance_weight=0.1, recon_weight=1.0):
+    """
+    DGAE Loss = Reconstruction + Guidance + Regularization
+    """
+    # Reconstruction loss
     recon_loss = F.mse_loss(recon_x, x, reduction='mean')
     
+    # Guidance loss: align DGAE latents with diffusion features
     if guidance_features is not None:
-        guidance_loss = guidance_features.mean()
+        # Project guidance features to match DGAE latent dim
+        # guidance_features is (batch, 8) from VAE mean+std
+        # z_dgae is (batch, 128)
+        # We need to make them comparable
+        
+        # Simple approach: normalize both and compute MSE
+        z_dgae_norm = F.normalize(z_dgae, dim=1)
+        guidance_norm = F.normalize(guidance_features, dim=1)
+        
+        # Pad guidance to match DGAE dim or use projection
+        if guidance_features.shape[1] < z_dgae.shape[1]:
+            # Repeat guidance features to match dimension
+            repeat_factor = z_dgae.shape[1] // guidance_features.shape[1]
+            guidance_expanded = guidance_norm.repeat(1, repeat_factor)
+            guidance_loss = F.mse_loss(z_dgae_norm, guidance_expanded, reduction='mean')
+        else:
+            # Project z_dgae to guidance space
+            z_projected = z_dgae_norm[:, :guidance_features.shape[1]]
+            guidance_loss = F.mse_loss(z_projected, guidance_norm, reduction='mean')
     else:
         guidance_loss = torch.tensor(0.0, device=x.device)
     
+    # Total loss
     total_loss = recon_weight * recon_loss + guidance_weight * guidance_loss
     
     return total_loss, recon_loss, guidance_loss
 
 
-def train_epoch(model, dataloader, optimizer, unet, vae, config, epoch):
+def train_epoch(model, dataloader, optimizer, vae, config, epoch):
     model.train()
     total_loss = 0
     total_recon = 0
@@ -291,21 +307,26 @@ def train_epoch(model, dataloader, optimizer, unet, vae, config, epoch):
         data = data.to(config.device)
         optimizer.zero_grad()
         
+        # Extract guidance features from Stable Diffusion VAE
         with torch.no_grad():
-            guidance_features = extract_diffusion_features(data, unet, vae, config.device)
+            guidance_features = extract_diffusion_features(data, vae, config.device)
         
+        # Forward pass through DGAE
         recon, z = model(data)
         
+        # Compute loss
         loss, recon_loss, guidance_loss = dgae_loss(
-            recon, data, guidance_features,
+            recon, data, z, guidance_features,
             guidance_weight=config.guidance_weight,
             recon_weight=config.recon_weight
         )
         
+        # Backward pass
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
         optimizer.step()
         
+        # Track metrics
         total_loss += loss.item()
         total_recon += recon_loss.item()
         total_guidance += guidance_loss.item()
@@ -404,7 +425,8 @@ def main():
     
     os.makedirs(config.output_dir, exist_ok=True)
     
-    unet, vae = load_diffusion_model(config.lora_dir, config.device)
+    # Load only VAE (not U-Net) to avoid dtype issues
+    vae = load_diffusion_model(config.lora_dir, config.device)
     
     dataset = ImageDataset(config.data_dir, config.image_size)
     dataloader = DataLoader(
@@ -443,7 +465,7 @@ def main():
     
     for epoch in range(start_epoch, config.num_epochs):
         avg_loss, avg_recon, avg_guidance = train_epoch(
-            model, dataloader, optimizer, unet, vae, config, epoch
+            model, dataloader, optimizer, vae, config, epoch
         )
         
         losses['total'].append(avg_loss)
