@@ -1,0 +1,83 @@
+{
+  "BYOL_Original": {
+    "metrics": {
+      "silhouette": 0.08869557082653046,
+      "ari": 0.6370559481096599,
+      "nmi": 0.6732417974365652
+    },
+    "num_samples": 355,
+    "num_classes": 6
+  },
+  "BYOL_+LoRA": {
+    "metrics": {
+      "silhouette": 0.11966486275196075,
+      "ari": 0.26375387610417933,
+      "nmi": 0.32548754665692514
+    },
+    "num_samples": 655,
+    "num_classes": 6
+  },
+  "BYOL_+Diffusion": {
+    "metrics": {
+      "silhouette": 0.09884193539619446,
+      "ari": 0.3308902308757473,
+      "nmi": 0.42177103814353134
+    },
+    "num_samples": 439,
+    "num_classes": 6
+  },
+  "CNN-JEPA_Original": {
+    "metrics": {
+      "silhouette": 0.25970184803009033,
+      "ari": 0.16972046440833627,
+      "nmi": 0.2325374859858037
+    },
+    "num_samples": 355,
+    "num_classes": 6
+  },
+  "CNN-JEPA_+LoRA": {
+    "metrics": {
+      "silhouette": 0.24758118391036987,
+      "ari": 0.08607718569837565,
+      "nmi": 0.12867725465642613
+    },
+    "num_samples": 655,
+    "num_classes": 6
+  },
+  "CNN-JEPA_+Diffusion": {
+    "metrics": {
+      "silhouette": 0.23875941336154938,
+      "ari": 0.09002964071161827,
+      "nmi": 0.11893013299281806
+    },
+    "num_samples": 439,
+    "num_classes": 6
+  },
+  "DGAE_Original": {
+    "metrics": {
+      "silhouette": 0.07903218269348145,
+      "ari": 0.28752257571400597,
+      "nmi": 0.43737637479811337
+    },
+    "num_samples": 355,
+    "num_classes": 6
+  },
+  "DGAE_+LoRA": {
+    "metrics": {
+      "silhouette": 0.08460277318954468,
+      "ari": 0.14934619327097007,
+      "nmi": 0.2109430983068005
+    },
+    "num_samples": 655,
+    "num_classes": 6
+  },
+  "DGAE_+Diffusion": {
+    "metrics": {
+      "silhouette": 0.07901933044195175,
+      "ari": 0.21539854594671706,
+      "nmi": 0.30191923288126765
+    },
+    "num_samples": 439,
+    "num_classes": 6
+  }
+}
