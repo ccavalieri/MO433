@@ -14,8 +14,8 @@ from pathlib import Path
 from tqdm import tqdm
 
 # Configuration
-LORA_DIR = "./corel_lora_model"
-OUTPUT_DIR = "./generated_images_corel"
+LORA_DIR = "/content/MO433/Trabalho Final/main/corel_lora_model"
+OUTPUT_DIR = "/content/MO433/Trabalho Final/main/generated_images_corel"
 RESOLUTION = 256
 NUM_IMAGES_PER_CLASS = 50
 SEED_START = 42
