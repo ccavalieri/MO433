@@ -414,13 +414,13 @@ def print_results_summary(df):
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate Clustering - VERSÃO CORRIGIDA')
-    parser.add_argument('--byol-features', type=str, default='./byol_features.pkl')
-    parser.add_argument('--jepa-features', type=str, default='./jepa_features.pkl')
-    parser.add_argument('--dgae-features', type=str, default='./dgae_features.pkl')
-    parser.add_argument('--byol-checkpoint', type=str, default='./byol_model/best_model.pt')
-    parser.add_argument('--jepa-checkpoint', type=str, default='./jepa_model/best_model.pt')
-    parser.add_argument('--dgae-checkpoint', type=str, default='./dgae_model/best_model.pt')
-    parser.add_argument('--output-dir', type=str, default='./clustering_results_FIXED')
+    parser.add_argument('--byol-features', type=str, default='/content/MO433/Trabalho Final/main/byol_features.pkl')
+    parser.add_argument('--jepa-features', type=str, default='/content/MO433/Trabalho Final/main/jepa_features.pkl')
+    parser.add_argument('--dgae-features', type=str, default='/content/MO433/Trabalho Final/main/dgae_features.pkl')
+    parser.add_argument('--byol-checkpoint', type=str, default='/content/MO433/Trabalho Final/main/byol_model/best_model.pt')
+    parser.add_argument('--jepa-checkpoint', type=str, default='/content/MO433/Trabalho Final/main/jepa_model/best_model.pt')
+    parser.add_argument('--dgae-checkpoint', type=str, default='/content/MO433/Trabalho Final/main/dgae_model/best_model.pt')
+    parser.add_argument('--output-dir', type=str, default='/content/MO433/Trabalho Final/main/clustering_results')
     parser.add_argument('--device', type=str, default='cuda')
     
     args = parser.parse_args()
