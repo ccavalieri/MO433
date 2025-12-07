@@ -150,7 +150,7 @@ class Predictor(nn.Module):
 
 
 class CNNJEPAModel(nn.Module):
-    """CNN-JEPA: Joint Embedding Predictive Architecture"""
+    """CNN-JEPA module"""
     def __init__(self, input_channels=3, embed_dim=256):
         super().__init__()
         
@@ -210,7 +210,7 @@ def create_masked_views(images, mask_ratio=0.3):
 
 
 def jepa_loss(predicted_embed, target_embed):
-    """Variance-Invariance-Covariance loss for JEPA"""
+    """Loss for JEPA"""
     predicted_embed = F.normalize(predicted_embed, dim=1)
     target_embed = F.normalize(target_embed, dim=1)
     
@@ -373,7 +373,6 @@ def main():
     features, labels, filenames = extract_features(model, eval_loader, device)
     save_features(features, labels, filenames, args.features_output)
     
-    print("Done")
 
 
 if __name__ == "__main__":

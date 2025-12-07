@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Clustering Evaluation - Task 5 - VERSÃO CORRIGIDA
-FIX: Agora extrai features REAIS das imagens sintéticas ao invés de duplicar features originais
+Clustering Evaluation
 """
 
 import numpy as np
@@ -52,7 +51,7 @@ def load_features(feature_path):
 
 
 class SyntheticImageDataset(Dataset):
-    """Dataset para carregar imagens sintéticas"""
+    """Load synthetic images"""
     def __init__(self, image_paths, image_size=256):
         self.image_paths = image_paths
         self.image_size = image_size
@@ -74,11 +73,7 @@ class SyntheticImageDataset(Dataset):
 
 
 def extract_features_from_images(model, image_paths, method_name, device='cuda', batch_size=32):
-    """
-    Extrai features de imagens usando o modelo treinado
-    
-    FIX CRÍTICO: Esta função agora realmente carrega e processa as imagens sintéticas!
-    """
+    """Feature extractor"""
     dataset = SyntheticImageDataset(image_paths)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=4)
     
@@ -86,13 +81,13 @@ def extract_features_from_images(model, image_paths, method_name, device='cuda',
     all_features = []
     all_filenames = []
     
-    print(f"  Extraindo features de {len(image_paths)} imagens sintéticas...")
+    print(f"  Extracting features from {len(image_paths)} images.")
     
     with torch.no_grad():
         for images, filenames in tqdm(dataloader, desc="Processing"):
             images = images.to(device)
             
-            # Extrai features dependendo do método
+            
             if method_name == 'BYOL':
                 features = model.encode_only(images)
                 features = features.view(features.size(0), -1).cpu().numpy()
@@ -101,19 +96,19 @@ def extract_features_from_images(model, image_paths, method_name, device='cuda',
             elif method_name == 'DGAE':
                 features = model.encode(images).cpu().numpy()
             else:
-                raise ValueError(f"Método desconhecido: {method_name}")
+                raise ValueError(f"Error: {method_name}")
             
             all_features.append(features)
             all_filenames.extend(filenames)
     
     all_features = np.vstack(all_features)
-    print(f"  ✓ Features extraídas: {all_features.shape}")
+    print(f"Extracted Features: {all_features.shape}")
     
     return all_features, all_filenames
 
 
 def load_model_for_inference(method_name, checkpoint_path, device='cuda'):
-    """Carrega modelo treinado para extração de features"""
+    """Load model"""
     print(f"  Carregando modelo {method_name} de {checkpoint_path}")
     
     if method_name == 'BYOL':
@@ -136,40 +131,35 @@ def load_model_for_inference(method_name, checkpoint_path, device='cuda'):
         model.load_state_dict(checkpoint['model_state_dict'])
     
     else:
-        raise ValueError(f"Método desconhecido: {method_name}")
+        raise ValueError(f"Error: {method_name}")
     
     model.eval()
-    print(f"  ✓ Modelo carregado")
+    print(f"Model leaded")
     return model
 
 
-def load_scenario_features_FIXED(method_name, scenario, feature_paths, model_checkpoints, device='cuda'):
+def load_scenario_features(method_name, scenario, feature_paths, model_checkpoints, device='cuda'):
     """
-    VERSÃO CORRIGIDA: Carrega features para um método e cenário específico
-    
-    FIX: Agora realmente extrai features das imagens sintéticas!
+    Load scenario features
     """
     print(f"\n{'='*60}")
     print(f"Loading features: {method_name} - {scenario}")
     print(f"{'='*60}")
     
-    # Carrega features originais
     orig_features, orig_labels, orig_files = load_features(feature_paths[method_name])
-    print(f"  Original dataset: {len(orig_features)} imagens")
+    print(f"  Original dataset: {len(orig_features)} images")
     
     if scenario == 'Original':
         return orig_features, orig_labels, orig_files
     
-    # Para cenários com sintéticas, carrega o modelo e extrai features REAIS
     model = load_model_for_inference(method_name, model_checkpoints[method_name], device)
     
     if scenario == '+LoRA':
-        lora_dir = Path('./generated_images_corel')
+        lora_dir = Path('/content/MO433/Trabalho Final/main/generated_images_corel')
         synthetic_paths = []
         synthetic_labels = []
         
         for class_id in range(1, 7):
-            # Busca diretório da classe
             class_dirs = sorted([d for d in lora_dir.iterdir() if d.is_dir()])
             if class_id - 1 < len(class_dirs):
                 class_dir = class_dirs[class_id - 1]
@@ -179,15 +169,14 @@ def load_scenario_features_FIXED(method_name, scenario, feature_paths, model_che
                     synthetic_paths.append(img_path)
                     synthetic_labels.append(class_id)
         
-        print(f"  Encontradas {len(synthetic_paths)} imagens sintéticas LoRA")
+        print(f"  {len(synthetic_paths)} images found")
         
-        # EXTRAI FEATURES REAIS DAS IMAGENS SINTÉTICAS!
         synthetic_features, synthetic_files = extract_features_from_images(
             model, synthetic_paths, method_name, device
         )
         
     elif scenario == '+Diffusion':
-        diff_dir = Path('./generated_images_diffusion_corel')
+        diff_dir = Path('/content/MO433/Trabalho Final/main/generated_images_diffusion_corel')
         synthetic_paths = []
         synthetic_labels = []
         
@@ -201,21 +190,15 @@ def load_scenario_features_FIXED(method_name, scenario, feature_paths, model_che
                     synthetic_paths.append(img_path)
                     synthetic_labels.append(class_id)
         
-        print(f"  Encontradas {len(synthetic_paths)} imagens sintéticas Diffusion")
+        print(f" {len(synthetic_paths)} images found")
         
-        # EXTRAI FEATURES REAIS DAS IMAGENS SINTÉTICAS!
         synthetic_features, synthetic_files = extract_features_from_images(
             model, synthetic_paths, method_name, device
         )
     
-    # Combina features originais + sintéticas
     features = np.concatenate([orig_features, synthetic_features])
     labels = np.concatenate([orig_labels, np.array(synthetic_labels)])
     filenames = orig_files + synthetic_files
-    
-    print(f"  Dataset combinado: {len(features)} imagens")
-    print(f"    - Originais: {len(orig_features)}")
-    print(f"    - Sintéticas: {len(synthetic_features)}")
     
     # Cleanup
     del model
@@ -343,7 +326,7 @@ def create_comparison_plot(all_results, output_path):
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
     
-    print(f"\n✓ Saved comparison plot: {output_path}")
+    print(f"\nSaved comparison plot: {output_path}")
 
 
 def save_results_csv(all_results, output_path):
@@ -367,7 +350,7 @@ def save_results_csv(all_results, output_path):
     df = df.sort_values(['Method', 'Scenario'])
     df.to_csv(output_path, index=False)
     
-    print(f"✓ Saved CSV results: {output_path}")
+    print(f"Saved CSV results: {output_path}")
     
     return df
 
@@ -389,21 +372,12 @@ def save_results_json(all_results, output_path):
     
     with open(output_path, 'w') as f:
         json.dump(json_data, f, indent=2)
-    
-    print(f"✓ Saved JSON results: {output_path}")
+
 
 
 def print_results_summary(df):
     """Print results summary"""
-    print("\n" + "="*80)
-    print("CLUSTERING RESULTS SUMMARY")
-    print("="*80)
-    print(df.to_string(index=False))
-    print("="*80)
-    
-    print("\n" + "="*80)
-    print("BEST RESULTS BY METRIC")
-    print("="*80)
+    print("custering results")
     
     for metric in ['Silhouette', 'ARI', 'NMI']:
         best_idx = df[metric].idxmax()
@@ -413,7 +387,7 @@ def print_results_summary(df):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Evaluate Clustering - VERSÃO CORRIGIDA')
+    parser = argparse.ArgumentParser(description='Evaluate Clustering')
     parser.add_argument('--byol-features', type=str, default='/content/MO433/Trabalho Final/main/byol_features.pkl')
     parser.add_argument('--jepa-features', type=str, default='/content/MO433/Trabalho Final/main/jepa_features.pkl')
     parser.add_argument('--dgae-features', type=str, default='/content/MO433/Trabalho Final/main/dgae_features.pkl')
@@ -442,14 +416,9 @@ def main():
         'DGAE': args.dgae_checkpoint
     }
     
-    print("="*80)
-    print("CLUSTERING EVALUATION - VERSÃO CORRIGIDA")
-    print("="*80)
+    print("Custering evaluation")
     print(f"Device: {device}")
     print(f"Output directory: {output_dir}")
-    print("="*80)
-    print("\n🔧 FIX: Agora extrai features REAIS das imagens sintéticas!")
-    print("="*80)
     
     methods = ['BYOL', 'CNN-JEPA', 'DGAE']
     scenarios = ['Original', '+LoRA', '+Diffusion']
@@ -458,25 +427,23 @@ def main():
     
     for method in methods:
         if not Path(feature_paths[method]).exists():
-            print(f"\n⚠ Warning: Features not found for {method}, skipping...")
             continue
         
         if not Path(model_checkpoints[method]).exists():
-            print(f"\n⚠ Warning: Checkpoint not found for {method}, skipping synthetic scenarios...")
             scenarios_to_eval = ['Original']
         else:
             scenarios_to_eval = scenarios
         
         for scenario in scenarios_to_eval:
             try:
-                features, labels, filenames = load_scenario_features_FIXED(
+                features, labels, filenames = load_scenario_features(
                     method, scenario, feature_paths, model_checkpoints, device
                 )
                 
-                print("\n Computing clustering metrics...")
+                print("\n Computing clustering metrics")
                 metrics_result = compute_clustering_metrics(features, labels)
                 
-                print("Computing UMAP embedding...")
+                print("Computing UMAP embedding")
                 umap_embedding = compute_umap_embedding(metrics_result['features_scaled'])
                 
                 key = f"{method}_{scenario}"
@@ -501,35 +468,26 @@ def main():
                 )
                 
             except Exception as e:
-                print(f"✗ Error processing {method} - {scenario}: {e}")
+                print(f"Error processing {method} - {scenario}: {e}")
                 import traceback
                 traceback.print_exc()
                 continue
     
     if len(all_results) == 0:
-        print("\n✗ No results to save!")
+        print("\nNo results to save!")
         return
+
     
-    print(f"\n{'='*80}")
-    print("Creating comparison visualizations...")
-    print(f"{'='*80}")
+    create_comparison_plot(all_results, output_dir / 'comparison_all_methods.png')
     
-    create_comparison_plot(all_results, output_dir / 'comparison_all_methods_FIXED.png')
+    print("Saving results")
     
-    print(f"\n{'='*80}")
-    print("Saving results...")
-    print(f"{'='*80}")
-    
-    df = save_results_csv(all_results, output_dir / 'clustering_metrics_FIXED.csv')
-    save_results_json(all_results, output_dir / 'clustering_metrics_FIXED.json')
+    df = save_results_csv(all_results, output_dir / 'clustering_metrics.csv')
+    save_results_json(all_results, output_dir / 'clustering_metrics.json')
     
     print_results_summary(df)
-    
-    print("\n" + "="*80)
-    print("✅ CLUSTERING EVALUATION COMPLETE!")
-    print("="*80)
+
     print(f"All results saved to: {output_dir}")
-    print("="*80)
 
 
 if __name__ == "__main__":

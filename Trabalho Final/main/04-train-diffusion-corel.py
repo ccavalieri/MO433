@@ -148,7 +148,7 @@ def load_vae_components(vae_checkpoint_path, device):
     for param in decoder.parameters():
         param.requires_grad = False
     
-    print(f"✓ VAE loaded successfully!")
+    print(f"VAE loaded")
     print(f"  Latent dimension: {vae_config.latent_dim}")
     
     return encoder, decoder, vae_config
@@ -401,9 +401,7 @@ def train_latent_diffusion(
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    print("="*80)
-    print("LATENT DIFFUSION TRAINING - COREL DATASET")
-    print("="*80)
+    print("LATENT DIFFUSION TRAINING")
     print(f"Device: {device}")
     print(f"Image size: {image_size}")
     print(f"Epochs: {num_epochs}")
@@ -412,7 +410,6 @@ def train_latent_diffusion(
     print(f"Schedule: {schedule_type}")
     print(f"Mixed precision: {use_mixed_precision}")
     print(f"EMA: {use_ema}")
-    print("="*80 + "\n")
     
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'samples'), exist_ok=True)
@@ -421,7 +418,7 @@ def train_latent_diffusion(
     latent_dim = vae_config.latent_dim
     
     dataset = ImageDataset(image_dir, image_size)
-    print(f"✓ Dataset: {len(dataset)} images\n")
+    print(f"Dataset: {len(dataset)} images\n")
     
     dataloader = DataLoader(
         dataset, batch_size=batch_size, shuffle=True,
@@ -436,7 +433,7 @@ def train_latent_diffusion(
     ).to(device)
     
     num_params = sum(p.numel() for p in model.parameters())
-    print(f"✓ Model parameters: {num_params:,}\n")
+    print(f"Model parameters: {num_params:,}\n")
     
     schedule = DiffusionSchedule(timesteps=1000, schedule_type=schedule_type)
     
@@ -502,11 +499,7 @@ def train_latent_diffusion(
         start_epoch = checkpoint['epoch']
         if ema and 'ema_shadow' in checkpoint:
             ema.shadow = checkpoint['ema_shadow']
-        print(f"✓ Resumed from epoch {start_epoch}\n")
-    
-    print("="*80)
-    print("Training...")
-    print("="*80 + "\n")
+
     
     for epoch in range(start_epoch, num_epochs):
         model.train()
@@ -585,7 +578,7 @@ def train_latent_diffusion(
         should_stop, stop_reason, is_best = early_stopper(avg_loss)
         
         if is_best:
-            print(f"✨ New best loss: {avg_loss:.4f}")
+            print(f"New best loss: {avg_loss:.4f}")
             best_loss = avg_loss
             checkpoint = {
                 'epoch': epoch,
@@ -601,7 +594,7 @@ def train_latent_diffusion(
             torch.save(checkpoint, os.path.join(output_dir, 'best_model.pt'))
         
         if should_stop:
-            print(f"\n⚠️  Early stopping: {stop_reason}")
+            print(f"\nEarly stopping: {stop_reason}")
             print(f"Best loss: {best_loss:.4f}")
             break
         
@@ -630,7 +623,7 @@ def train_latent_diffusion(
     plt.savefig(os.path.join(output_dir, 'loss_history.png'))
     plt.close()
     
-    print(f"\n✅ Training complete! Models saved to {output_dir}")
+    print(f"\nTraining complete. Models saved to {output_dir}")
     print(f"Best loss: {best_loss:.4f}")
 
 
