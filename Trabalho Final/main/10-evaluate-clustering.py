@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Clustering Evaluation
+Clustering Evaluation - Task 5 - VERSÃO CORRIGIDA
+FIX: Agora extrai features REAIS das imagens sintéticas ao invés de duplicar features originais
 """
 
 import numpy as np
@@ -18,6 +19,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 import argparse
+import torch
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from PIL import Image
 
 
 CLASS_NAMES = {
@@ -46,55 +51,175 @@ def load_features(feature_path):
     return data['features'], data['labels'], data['filenames']
 
 
-def load_scenario_features(method_name, scenario, feature_paths):
-    """Load features for a specific method and scenario"""
-    print(f"\nLoading features: {method_name} - {scenario}")
+class SyntheticImageDataset(Dataset):
+    """Dataset para carregar imagens sintéticas"""
+    def __init__(self, image_paths, image_size=256):
+        self.image_paths = image_paths
+        self.image_size = image_size
+        
+        self.transform = transforms.Compose([
+            transforms.Resize(image_size),
+            transforms.CenterCrop(image_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ])
+    
+    def __len__(self):
+        return len(self.image_paths)
+    
+    def __getitem__(self, idx):
+        img_path = self.image_paths[idx]
+        image = Image.open(img_path).convert('RGB')
+        return self.transform(image), str(img_path.name)
+
+
+def extract_features_from_images(model, image_paths, method_name, device='cuda', batch_size=32):
+    """
+    Extrai features de imagens usando o modelo treinado
+    
+    FIX CRÍTICO: Esta função agora realmente carrega e processa as imagens sintéticas!
+    """
+    dataset = SyntheticImageDataset(image_paths)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+    
+    model.eval()
+    all_features = []
+    all_filenames = []
+    
+    print(f"  Extraindo features de {len(image_paths)} imagens sintéticas...")
+    
+    with torch.no_grad():
+        for images, filenames in tqdm(dataloader, desc="Processing"):
+            images = images.to(device)
+            
+            # Extrai features dependendo do método
+            if method_name == 'BYOL':
+                features = model.encode_only(images)
+                features = features.view(features.size(0), -1).cpu().numpy()
+            elif method_name == 'CNN-JEPA':
+                features = model.encode_only(images).cpu().numpy()
+            elif method_name == 'DGAE':
+                features = model.encode(images).cpu().numpy()
+            else:
+                raise ValueError(f"Método desconhecido: {method_name}")
+            
+            all_features.append(features)
+            all_filenames.extend(filenames)
+    
+    all_features = np.vstack(all_features)
+    print(f"  ✓ Features extraídas: {all_features.shape}")
+    
+    return all_features, all_filenames
+
+
+def load_model_for_inference(method_name, checkpoint_path, device='cuda'):
+    """Carrega modelo treinado para extração de features"""
+    print(f"  Carregando modelo {method_name} de {checkpoint_path}")
+    
+    if method_name == 'BYOL':
+        from main.train_byol_corel import BYOLModel
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model = BYOLModel(input_channels=3, image_size=256, projection_dim=128).to(device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        
+    elif method_name == 'CNN-JEPA':
+        from main.train_cnn_jepa_corel import CNNJEPAModel
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model = CNNJEPAModel(input_channels=3, embed_dim=256).to(device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        
+    elif method_name == 'DGAE':
+        from main.extract_dgae_features import DGAE
+        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+        config = checkpoint['config']
+        model = DGAE(config).to(device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+    
+    else:
+        raise ValueError(f"Método desconhecido: {method_name}")
+    
+    model.eval()
+    print(f"  ✓ Modelo carregado")
+    return model
+
+
+def load_scenario_features_FIXED(method_name, scenario, feature_paths, model_checkpoints, device='cuda'):
+    """
+    VERSÃO CORRIGIDA: Carrega features para um método e cenário específico
+    
+    FIX: Agora realmente extrai features das imagens sintéticas!
+    """
+    print(f"\n{'='*60}")
+    print(f"Loading features: {method_name} - {scenario}")
+    print(f"{'='*60}")
+    
+    # Carrega features originais
+    orig_features, orig_labels, orig_files = load_features(feature_paths[method_name])
+    print(f"  Original dataset: {len(orig_features)} imagens")
     
     if scenario == 'Original':
-        features, labels, filenames = load_features(feature_paths[method_name])
+        return orig_features, orig_labels, orig_files
     
-    elif scenario == '+LoRA':
-        orig_features, orig_labels, orig_files = load_features(feature_paths[method_name])
-        
-        lora_dir = Path('/content/MO433/Trabalho Final/main/generated_images_corel')
-        lora_images = []
-        lora_labels = []
+    # Para cenários com sintéticas, carrega o modelo e extrai features REAIS
+    model = load_model_for_inference(method_name, model_checkpoints[method_name], device)
+    
+    if scenario == '+LoRA':
+        lora_dir = Path('./generated_images_corel')
+        synthetic_paths = []
+        synthetic_labels = []
         
         for class_id in range(1, 7):
-            class_name = list(lora_dir.glob(f'*'))[class_id-1].name
-            class_dir = lora_dir / class_name
-            class_images = sorted(list(class_dir.glob('*.png')))
-            
-            for img_file in class_images:
-                if 'synthetic' in img_file.name:
-                    lora_images.append(img_file.name)
-                    lora_labels.append(class_id)
+            # Busca diretório da classe
+            class_dirs = sorted([d for d in lora_dir.iterdir() if d.is_dir()])
+            if class_id - 1 < len(class_dirs):
+                class_dir = class_dirs[class_id - 1]
+                class_images = sorted(list(class_dir.glob('*synthetic.png')))
+                
+                for img_path in class_images:
+                    synthetic_paths.append(img_path)
+                    synthetic_labels.append(class_id)
         
-        features = np.concatenate([orig_features, orig_features[:len(lora_images)]])
-        labels = np.concatenate([orig_labels, np.array(lora_labels)])
-        filenames = orig_files + lora_images
-    
+        print(f"  Encontradas {len(synthetic_paths)} imagens sintéticas LoRA")
+        
+        # EXTRAI FEATURES REAIS DAS IMAGENS SINTÉTICAS!
+        synthetic_features, synthetic_files = extract_features_from_images(
+            model, synthetic_paths, method_name, device
+        )
+        
     elif scenario == '+Diffusion':
-        orig_features, orig_labels, orig_files = load_features(feature_paths[method_name])
-        
-        diff_dir = Path('/content/MO433/Trabalho Final/main/generated_images_diffusion_corel')
-        diff_images = []
-        diff_labels = []
+        diff_dir = Path('./generated_images_diffusion_corel')
+        synthetic_paths = []
+        synthetic_labels = []
         
         for class_id in range(1, 7):
-            class_name = list(diff_dir.glob(f'*'))[class_id-1].name
-            class_dir = diff_dir / class_name
-            class_images = sorted(list(class_dir.glob('*.png')))
-            
-            for img_file in class_images:
-                if 'diffusion' in img_file.name:
-                    diff_images.append(img_file.name)
-                    diff_labels.append(class_id)
+            class_dirs = sorted([d for d in diff_dir.iterdir() if d.is_dir()])
+            if class_id - 1 < len(class_dirs):
+                class_dir = class_dirs[class_id - 1]
+                class_images = sorted(list(class_dir.glob('*diffusion.png')))
+                
+                for img_path in class_images:
+                    synthetic_paths.append(img_path)
+                    synthetic_labels.append(class_id)
         
-        features = np.concatenate([orig_features, orig_features[:len(diff_images)]])
-        labels = np.concatenate([orig_labels, np.array(diff_labels)])
-        filenames = orig_files + diff_images
+        print(f"  Encontradas {len(synthetic_paths)} imagens sintéticas Diffusion")
+        
+        # EXTRAI FEATURES REAIS DAS IMAGENS SINTÉTICAS!
+        synthetic_features, synthetic_files = extract_features_from_images(
+            model, synthetic_paths, method_name, device
+        )
     
+    # Combina features originais + sintéticas
+    features = np.concatenate([orig_features, synthetic_features])
+    labels = np.concatenate([orig_labels, np.array(synthetic_labels)])
+    filenames = orig_files + synthetic_files
+    
+    print(f"  Dataset combinado: {len(features)} imagens")
+    print(f"    - Originais: {len(orig_features)}")
+    print(f"    - Sintéticas: {len(synthetic_features)}")
+    
+    # Cleanup
+    del model
+    torch.cuda.empty_cache()
     
     return features, labels, filenames
 
@@ -134,21 +259,8 @@ def compute_umap_embedding(features, random_state=42):
     return embedding
 
 
-def compute_tsne_embedding(features, random_state=42):
-    """Compute t-SNE embedding"""
-    tsne = TSNE(
-        n_components=2,
-        random_state=random_state,
-        perplexity=30,
-        n_iter=1000
-    )
-    
-    embedding = tsne.fit_transform(features)
-    return embedding
-
-
 def plot_embedding(embedding, labels, title, output_path, method='UMAP'):
-    """Plot embedding"""
+    """Plot embedding with fixed colors"""
     fig, ax = plt.subplots(figsize=(10, 8))
     
     for class_id in sorted(np.unique(labels)):
@@ -231,7 +343,7 @@ def create_comparison_plot(all_results, output_path):
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
     
-    print(f"\nSaved comparison plot: {output_path}")
+    print(f"\n✓ Saved comparison plot: {output_path}")
 
 
 def save_results_csv(all_results, output_path):
@@ -255,7 +367,7 @@ def save_results_csv(all_results, output_path):
     df = df.sort_values(['Method', 'Scenario'])
     df.to_csv(output_path, index=False)
     
-    print(f"Saved CSV results: {output_path}")
+    print(f"✓ Saved CSV results: {output_path}")
     
     return df
 
@@ -278,13 +390,20 @@ def save_results_json(all_results, output_path):
     with open(output_path, 'w') as f:
         json.dump(json_data, f, indent=2)
     
-    print(f"Saved JSON results: {output_path}")
+    print(f"✓ Saved JSON results: {output_path}")
 
 
 def print_results_summary(df):
     """Print results summary"""
-
+    print("\n" + "="*80)
+    print("CLUSTERING RESULTS SUMMARY")
+    print("="*80)
+    print(df.to_string(index=False))
+    print("="*80)
+    
+    print("\n" + "="*80)
     print("BEST RESULTS BY METRIC")
+    print("="*80)
     
     for metric in ['Silhouette', 'ARI', 'NMI']:
         best_idx = df[metric].idxmax()
@@ -294,13 +413,19 @@ def print_results_summary(df):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Evaluate Clustering')
-    parser.add_argument('--byol-features', type=str, default='/content/MO433/Trabalho Final/main/byol_features.pkl')
-    parser.add_argument('--jepa-features', type=str, default='/content/MO433/Trabalho Final/main/jepa_features.pkl')
-    parser.add_argument('--dgae-features', type=str, default='/content/MO433/Trabalho Final/main/dgae_features.pkl')
-    parser.add_argument('--output-dir', type=str, default='/content/MO433/Trabalho Final/main/clustering_results')
+    parser = argparse.ArgumentParser(description='Evaluate Clustering - VERSÃO CORRIGIDA')
+    parser.add_argument('--byol-features', type=str, default='./byol_features.pkl')
+    parser.add_argument('--jepa-features', type=str, default='./jepa_features.pkl')
+    parser.add_argument('--dgae-features', type=str, default='./dgae_features.pkl')
+    parser.add_argument('--byol-checkpoint', type=str, default='./byol_model/best_model.pt')
+    parser.add_argument('--jepa-checkpoint', type=str, default='./jepa_model/best_model.pt')
+    parser.add_argument('--dgae-checkpoint', type=str, default='./dgae_model/best_model.pt')
+    parser.add_argument('--output-dir', type=str, default='./clustering_results_FIXED')
+    parser.add_argument('--device', type=str, default='cuda')
     
     args = parser.parse_args()
+    
+    device = args.device if torch.cuda.is_available() else 'cpu'
     
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -311,6 +436,21 @@ def main():
         'DGAE': args.dgae_features
     }
     
+    model_checkpoints = {
+        'BYOL': args.byol_checkpoint,
+        'CNN-JEPA': args.jepa_checkpoint,
+        'DGAE': args.dgae_checkpoint
+    }
+    
+    print("="*80)
+    print("CLUSTERING EVALUATION - VERSÃO CORRIGIDA")
+    print("="*80)
+    print(f"Device: {device}")
+    print(f"Output directory: {output_dir}")
+    print("="*80)
+    print("\n🔧 FIX: Agora extrai features REAIS das imagens sintéticas!")
+    print("="*80)
+    
     methods = ['BYOL', 'CNN-JEPA', 'DGAE']
     scenarios = ['Original', '+LoRA', '+Diffusion']
     
@@ -318,27 +458,32 @@ def main():
     
     for method in methods:
         if not Path(feature_paths[method]).exists():
-            
+            print(f"\n⚠ Warning: Features not found for {method}, skipping...")
             continue
         
-        for scenario in scenarios:
-            
-            
+        if not Path(model_checkpoints[method]).exists():
+            print(f"\n⚠ Warning: Checkpoint not found for {method}, skipping synthetic scenarios...")
+            scenarios_to_eval = ['Original']
+        else:
+            scenarios_to_eval = scenarios
+        
+        for scenario in scenarios_to_eval:
             try:
-                features, labels, filenames = load_scenario_features(method, scenario, feature_paths)
+                features, labels, filenames = load_scenario_features_FIXED(
+                    method, scenario, feature_paths, model_checkpoints, device
+                )
                 
+                print("\n Computing clustering metrics...")
                 metrics_result = compute_clustering_metrics(features, labels)
                 
+                print("Computing UMAP embedding...")
                 umap_embedding = compute_umap_embedding(metrics_result['features_scaled'])
-                
-                tsne_embedding = compute_tsne_embedding(metrics_result['features_scaled'])
                 
                 key = f"{method}_{scenario}"
                 all_results[key] = {
                     'metrics': {k: v for k, v in metrics_result.items() 
                                if k not in ['pred_labels', 'features_scaled']},
                     'umap_embedding': umap_embedding,
-                    'tsne_embedding': tsne_embedding,
                     'true_labels': labels,
                     'num_samples': len(labels)
                 }
@@ -355,25 +500,36 @@ def main():
                     method='UMAP'
                 )
                 
-                plot_embedding(
-                    tsne_embedding, labels,
-                    f"{method} - {scenario} (t-SNE)",
-                    output_dir / f"{method.lower().replace('-', '_')}_{scenario.lower().replace('+', 'with_')}_tsne.png",
-                    method='t-SNE'
-                )
-                
             except Exception as e:
-                print(f"Error processing {method} - {scenario}: {e}")
+                print(f"✗ Error processing {method} - {scenario}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
     
-    create_comparison_plot(all_results, output_dir / 'comparison_all_methods.png')
+    if len(all_results) == 0:
+        print("\n✗ No results to save!")
+        return
     
-    df = save_results_csv(all_results, output_dir / 'clustering_metrics.csv')
-    save_results_json(all_results, output_dir / 'clustering_metrics.json')
+    print(f"\n{'='*80}")
+    print("Creating comparison visualizations...")
+    print(f"{'='*80}")
+    
+    create_comparison_plot(all_results, output_dir / 'comparison_all_methods_FIXED.png')
+    
+    print(f"\n{'='*80}")
+    print("Saving results...")
+    print(f"{'='*80}")
+    
+    df = save_results_csv(all_results, output_dir / 'clustering_metrics_FIXED.csv')
+    save_results_json(all_results, output_dir / 'clustering_metrics_FIXED.json')
     
     print_results_summary(df)
     
-    print("Clustering completed")
+    print("\n" + "="*80)
+    print("✅ CLUSTERING EVALUATION COMPLETE!")
+    print("="*80)
+    print(f"All results saved to: {output_dir}")
+    print("="*80)
 
 
 if __name__ == "__main__":
